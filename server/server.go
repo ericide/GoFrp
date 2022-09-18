@@ -5,6 +5,7 @@ import (
 	"awesomeProject2/server/svcContext"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -60,6 +61,9 @@ func doListenStuff(ctx *svcContext.SVCContext, conn net.Conn) {
 	ctx.CmdCh <- 1
 	conn2, _ := <-ctx.ConnCh
 
+	defer conn.Close()
+	defer conn2.Close()
+
 	fmt.Printf("start transmit data!\n")
 
 	errCh := make(chan error, 2)
@@ -76,5 +80,6 @@ func doListenStuff(ctx *svcContext.SVCContext, conn net.Conn) {
 
 func proxy(dst io.Writer, src io.Reader, errCh chan error) {
 	_, err := io.Copy(dst, src)
+	log.Println(err)
 	errCh <- err
 }
