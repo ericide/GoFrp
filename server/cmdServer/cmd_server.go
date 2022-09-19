@@ -4,6 +4,7 @@ import (
 	"awesomeProject2/server/svcContext"
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"time"
 )
@@ -25,6 +26,7 @@ func (h *CMDHandler) Start() {
 	// 监听并接受来自客户端的连接
 	for {
 		conn, err := listener.Accept()
+		log.Println("new client connection accept")
 		if err != nil {
 			fmt.Println("Error accepting", err.Error())
 			return // 终止程序
@@ -42,6 +44,8 @@ func (h *CMDHandler) doCMDChannalStuff(conn net.Conn) {
 		fmt.Printf("[ERR] socks: read : %v", err)
 		return
 	}
+	log.Printf("read client first byte: %v \n", fun[0])
+
 	//cmd
 	if fun[0] == 0 {
 		fmt.Printf("New cmd client connected!\n")
