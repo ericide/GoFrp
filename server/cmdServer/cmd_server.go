@@ -20,7 +20,7 @@ func (h *CMDHandler) Start() {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", h.CmdPort))
 	if err != nil {
-		fmt.Println("Error listening", err.Error())
+		log.Println("Error listening", err.Error())
 		return //终止程序
 	}
 	// 监听并接受来自客户端的连接
@@ -28,7 +28,7 @@ func (h *CMDHandler) Start() {
 		conn, err := listener.Accept()
 		log.Println("new client connection accept")
 		if err != nil {
-			fmt.Println("Error accepting", err.Error())
+			log.Println("Error accepting", err.Error())
 			return // 终止程序
 		}
 		go h.doCMDChannalStuff(conn)
@@ -41,14 +41,14 @@ func (h *CMDHandler) doCMDChannalStuff(conn net.Conn) {
 	fun := []byte{0}
 	if _, err := bufConn.Read(fun); err != nil {
 		conn.Close()
-		fmt.Printf("[ERR] socks: read : %v", err)
+		log.Printf("[ERR] socks: read : %v", err)
 		return
 	}
 	log.Printf("read client first byte: %v \n", fun[0])
 
 	//cmd
 	if fun[0] == 0 {
-		fmt.Printf("New cmd client connected!\n")
+		log.Printf("New cmd client connected!\n")
 		h.SvcCtx.NewConnNotiCh <- conn
 
 		for {
@@ -65,7 +65,7 @@ func (h *CMDHandler) doCMDChannalStuff(conn net.Conn) {
 	}
 	// new data channal
 	if fun[0] == 1 {
-		fmt.Printf("New data client connected\n")
+		log.Printf("New data client connected\n")
 		h.SvcCtx.ConnCh <- conn
 	}
 }
@@ -74,13 +74,13 @@ func (h *CMDHandler) cmdServer() {
 	for {
 		select {
 		case needChannal, _ := <-h.SvcCtx.CmdCh:
-			fmt.Printf("need new channal: %v \n", needChannal)
+			log.Printf("need new channal: %v \n", needChannal)
 			bs := []byte{1}
-			fmt.Printf("send conn request to client %v\n", h.conn)
+			log.Printf("send conn request to client %v\n", h.conn)
 			if h.conn != nil {
 				(*h.conn).Write(bs)
 			}
-			fmt.Printf("send to client to create a new channal\n")
+			log.Printf("send to client to create a new channal\n")
 		case conn, _ := <-h.SvcCtx.NewConnNotiCh:
 			h.conn = &conn
 		}
