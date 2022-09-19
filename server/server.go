@@ -59,27 +59,27 @@ func doListenStuff(ctx *svcContext.SVCContext, conn net.Conn) {
 	fmt.Printf("New external request received!\n")
 
 	ctx.CmdCh <- 1
-	conn2, _ := <-ctx.ConnCh
-
-	defer conn.Close()
-	defer conn2.Close()
+	connFromFrpClient, _ := <-ctx.ConnCh
 
 	fmt.Printf("start transmit data!\n")
 
 	errCh := make(chan error, 2)
-	go proxy(conn, conn2, errCh)
-	go proxy(conn2, conn, errCh)
-	for i := 0; i < 2; i++ {
-		e := <-errCh
-		if e != nil {
-			// return from this function closes target (and conn).
-			return
-		}
-	}
+	go proxy("frp client -> real client", conn, connFromFrpClient, errCh)
+	go proxy("real client -> frp client", connFromFrpClient, conn, errCh)
+
+	e1 := <- errCh
+	log.Printf("err 1 %v", e1)
+	conn.Close()
+	connFromFrpClient.Close()
+	e2 := <- errCh
+	log.Printf("err 2 %v", e2)
+
+	log.Printf("close %v, %v", conn, connFromFrpClient)
+
 }
 
-func proxy(dst io.Writer, src io.Reader, errCh chan error) {
+func proxy(des string, dst io.Writer, src io.Reader, errCh chan error) {
 	_, err := io.Copy(dst, src)
-	log.Println(err)
+	log.Printf("error des: %s err: %v direction: %v -> %v", des, err, src, dst)
 	errCh <- err
 }

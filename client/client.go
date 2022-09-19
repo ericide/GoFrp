@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"time"
 )
@@ -28,15 +29,15 @@ func connectRemoteController(remoteCmdHost string, localHost string) {
 
 		fun := []byte{0}
 		if _, err := reader.Read(fun); err != nil {
-			fmt.Printf("[ERR] socks: Failed to get version byte: %v", err)
+			log.Printf("[ERR] socks: Failed to get version byte: %v", err)
 			return
 		}
 
 		if fun[0] == 1 {
-			fmt.Println("new connect request ", fun)
+			log.Printf("new connect request %v \n ", fun)
 			go createNewConn(remoteCmdHost, localHost)
 		} else {
-			fmt.Printf("hert rate response\n")
+			log.Printf("hert rate response: %v \n", fun[0])
 		}
 	}
 }
