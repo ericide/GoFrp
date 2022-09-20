@@ -36,18 +36,18 @@ func Listen(port int, cmdPort int) {
 func doListenServer(ctx *svcContext.SVCContext, port int) {
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
 	if err != nil {
-		fmt.Println("Error listening", err.Error())
+		log.Println("Error listening", err.Error())
 		return //终止程序
 	}
 	// 监听并接受来自客户端的连接
 	for {
-		fmt.Println("start Accept", port)
+		log.Println("start Accept", port)
 
 		conn, err := listener.Accept()
-		fmt.Println("Accepted")
+		log.Printf("Accepted %v \n", conn)
 
 		if err != nil {
-			fmt.Println("Error accepting", err.Error())
+			log.Println("Error accepting", err.Error())
 			return // 终止程序
 		}
 		go doListenStuff(ctx, conn)
@@ -56,30 +56,32 @@ func doListenServer(ctx *svcContext.SVCContext, port int) {
 
 func doListenStuff(ctx *svcContext.SVCContext, conn net.Conn) {
 
-	fmt.Printf("New external request received!\n")
+	log.Printf("New external request received!\n")
 
 	ctx.CmdCh <- 1
 	connFromFrpClient, _ := <-ctx.ConnCh
 
-	fmt.Printf("start transmit data!\n")
+	log.Printf("start transmit data!\n")
 
 	errCh := make(chan error, 2)
 	go proxy("frp client -> real client", conn, connFromFrpClient, errCh)
 	go proxy("real client -> frp client", connFromFrpClient, conn, errCh)
 
-	e1 := <- errCh
-	log.Printf("err 1 %v", e1)
-	conn.Close()
-	connFromFrpClient.Close()
-	e2 := <- errCh
-	log.Printf("err 2 %v", e2)
+	<-errCh
+
+	err := conn.Close()
+	log.Printf("close err 1 %v", err)
+	err = connFromFrpClient.Close()
+	log.Printf("close err 2 %v", err)
+
+	<-errCh
 
 	log.Printf("close %v, %v", conn, connFromFrpClient)
 
 }
 
 func proxy(des string, dst io.Writer, src io.Reader, errCh chan error) {
-	_, err := io.Copy(dst, src)
-	log.Printf("error des: %s err: %v direction: %v -> %v", des, err, src, dst)
+	num, err := io.Copy(dst, src)
+	log.Printf("num: %v, des: %s err: %v direction: %v -> %v", num, des, err, src, dst)
 	errCh <- err
 }
