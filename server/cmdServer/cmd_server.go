@@ -59,7 +59,8 @@ func (h *CMDHandler) doCMDChannalStuff(conn net.Conn) {
 				return
 			}
 			fun := []byte{5}
-			conn.Write(fun)
+			n, err := conn.Write(fun)
+			log.Printf("[heart send], conn: %v n:%v err:%v\n", conn, n, err)
 		}
 
 	}
@@ -76,9 +77,10 @@ func (h *CMDHandler) cmdServer() {
 		case needChannal, _ := <-h.SvcCtx.CmdCh:
 			log.Printf("need new channal: %v \n", needChannal)
 			bs := []byte{1}
-			log.Printf("send conn request to client %v\n", h.conn)
+
 			if h.conn != nil {
-				(*h.conn).Write(bs)
+				n, err := (*h.conn).Write(bs)
+				log.Printf("[req new send], conn: %v n:%v err:%v\n", *h.conn, n, err)
 			}
 			log.Printf("send to client to create a new channal\n")
 		case conn, _ := <-h.SvcCtx.NewConnNotiCh:
