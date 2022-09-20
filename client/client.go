@@ -80,8 +80,8 @@ func createNewConn(remoteCmdHost string, localHost string) {
 	fmt.Println("start transmit")
 
 	errCh := make(chan error, 2)
-	go proxy2(conn, conn2, errCh)
-	go proxy2(conn2, conn, errCh)
+	go proxy2("local -> remote", conn, conn2, errCh)
+	go proxy2("remote -> local", conn2, conn, errCh)
 	for i := 0; i < 2; i++ {
 		e := <-errCh
 		if e != nil {
@@ -91,7 +91,8 @@ func createNewConn(remoteCmdHost string, localHost string) {
 	}
 }
 
-func proxy2(dst io.Writer, src io.Reader, errCh chan error) {
-	_, err := io.Copy(dst, src)
+func proxy2(des string, dst io.Writer, src io.Reader, errCh chan error) {
+	num, err := io.Copy(dst, src)
+	log.Printf("num: %v, des: %s err: %v direction: %v -> %v", num, des, err, src, dst)
 	errCh <- err
 }
