@@ -1,24 +1,24 @@
 package main
 
 import (
-	"awesomeProject2/client"
-	"awesomeProject2/server"
+	"awesomeProject2/v2/server"
+	"awesomeProject2/v2/slave"
 	"flag"
 )
 
 var mode = flag.String("m", "server", "run mode")
 var port = flag.Int("p", 10000, "data port")
 var cmdPort = flag.Int("cp", 10001, "cmd port")
-var remoteCmdHost = flag.String("rch", "192.168.1.50:10001", "remote cmd host")
-var localHost = flag.String("lh", "localhost:8000", "remote cmd host")
+var remoteCmdHost = flag.String("rch", "localhost:10001", "remote cmd host")
+var localHost = flag.String("lh", "192.168.0.65:8001", "remote cmd host")
 
 func main() {
 	flag.Parse()
 
 	if *mode == "server" {
-		server.Listen(*port, *cmdPort)
+		go server.ListenServer(*port)
+		server.ListenTunnelServer(*cmdPort)
 	} else {
-		client.Listen(*remoteCmdHost, *localHost)
+		slave.Start(*remoteCmdHost, *localHost)
 	}
-
 }
