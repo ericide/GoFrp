@@ -2,12 +2,14 @@ package slave
 
 import (
 	"GoFrp/v2/constant"
+	"GoFrp/v2/model"
 	"GoFrp/v2/util"
 	"bufio"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 type TunnelClient struct {
@@ -50,7 +52,7 @@ type Tunnel struct {
 	tunnelConn *net.Conn
 	extConns   map[int64]*net.Conn
 	index      int64
-	writeCh    chan DataObject
+	writeCh    chan model.DataObject
 }
 
 func NewTunnel(conn net.Conn, extAddress string) *Tunnel {
@@ -58,7 +60,7 @@ func NewTunnel(conn net.Conn, extAddress string) *Tunnel {
 		ExtAddress: extAddress,
 		tunnelConn: &conn,
 		extConns:   make(map[int64]*net.Conn),
-		writeCh:    make(chan DataObject),
+		writeCh:    make(chan model.DataObject),
 	}
 }
 
@@ -76,8 +78,6 @@ func (t *Tunnel) Start() {
 			t.Close()
 			return
 		}
-
-		log.Println("Tunnel", *t.tunnelConn, "have data")
 
 		identity, length, method, err := util.VerifyDataHeader(fun)
 		if err != nil {
@@ -98,6 +98,9 @@ func (t *Tunnel) Start() {
 				return
 			}
 			t.transferData(identity, &data)
+		case constant.MethodPing:
+		case constant.MethodPong:
+			log.Println("received heart pong:", identity)
 		}
 	}
 }
@@ -155,7 +158,7 @@ func (t *Tunnel) listenToExternalConn(index int64, conn *net.Conn) {
 		}
 		log.Println("Read from ext", index, "Length", length)
 		header := util.CreateDataHeader(index, length, constant.MethodData)
-		dataObj := DataObject{
+		dataObj := model.DataObject{
 			Pre:        header,
 			Data:       &datas,
 			DataLength: int64(length),
@@ -164,9 +167,19 @@ func (t *Tunnel) listenToExternalConn(index int64, conn *net.Conn) {
 	}
 }
 
+func (t *Tunnel) responseToPing(index int64) {
+	header := util.CreateDataHeader(index, 0, constant.MethodPong)
+	dataObj := model.DataObject{
+		Pre:        header,
+		Data:       nil,
+		DataLength: 0,
+	}
+	t.writeCh <- dataObj
+}
+
 func (t *Tunnel) closeSideConn(index int64) {
 	header := util.CreateDataHeader(index, 0, constant.MethodClose)
-	dataObj := DataObject{
+	dataObj := model.DataObject{
 		Pre:        header,
 		Data:       nil,
 		DataLength: 0,
@@ -175,6 +188,8 @@ func (t *Tunnel) closeSideConn(index int64) {
 }
 
 func (t *Tunnel) startTunnelWriteQueue() {
+	ticker := time.NewTicker(10 * time.Second)
+	var heartIndex int64 = 0
 	for {
 		select {
 		case dataObj, _ := <-t.writeCh:
@@ -194,6 +209,15 @@ func (t *Tunnel) startTunnelWriteQueue() {
 					t.Close()
 					return
 				}
+			}
+		case <-ticker.C:
+			heartIndex++
+			header := util.CreateDataHeader(heartIndex, 0, constant.MethodPing)
+			_, err := (*t.tunnelConn).Write(*header)
+			if err != nil {
+				log.Println(err)
+				t.Close()
+				return
 			}
 		}
 	}
