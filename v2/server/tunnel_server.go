@@ -110,7 +110,7 @@ func (t *Tunnel) Start() {
 			t.Close()
 			return
 		}
-		log.Println("Tunnel have new data")
+
 		identity, length, method, err := util.VerifyDataHeader(fun)
 		if err != nil {
 			t.Close()
@@ -130,6 +130,11 @@ func (t *Tunnel) Start() {
 				return
 			}
 			t.transferData(identity, &data)
+		case constant.MethodPing:
+			log.Println("received heart ping:", identity)
+			t.responseToPing(identity)
+		case constant.MethodPong:
+
 		}
 	}
 }
@@ -173,13 +178,7 @@ func (t *Tunnel) listenToExternalConn(index int64, conn *net.Conn) {
 		length, err := bufConn.Read(datas)
 		if err != nil {
 			fmt.Println("Ext client err: ", index, err)
-			header := util.CreateDataHeader(index, 0, constant.MethodClose)
-			dataObj := model.DataObject{
-				Pre:        header,
-				Data:       nil,
-				DataLength: 0,
-			}
-			t.writeCh <- dataObj
+			t.closeSideConn(index)
 			return
 		}
 
@@ -191,6 +190,33 @@ func (t *Tunnel) listenToExternalConn(index int64, conn *net.Conn) {
 		}
 		t.writeCh <- dataObj
 	}
+}
+func (t *Tunnel) responseToPing(index int64) {
+	header := util.CreateDataHeader(index, 0, constant.MethodPong)
+	dataObj := model.DataObject{
+		Pre:        header,
+		Data:       nil,
+		DataLength: 0,
+	}
+	t.writeCh <- dataObj
+}
+func (t *Tunnel) SendPing(index int64) {
+	header := util.CreateDataHeader(index, 0, constant.MethodPing)
+	dataObj := model.DataObject{
+		Pre:        header,
+		Data:       nil,
+		DataLength: 0,
+	}
+	t.writeCh <- dataObj
+}
+func (t *Tunnel) closeSideConn(index int64) {
+	header := util.CreateDataHeader(index, 0, constant.MethodClose)
+	dataObj := model.DataObject{
+		Pre:        header,
+		Data:       nil,
+		DataLength: 0,
+	}
+	t.writeCh <- dataObj
 }
 
 func (t *Tunnel) startTunnelWriteQueue() {
