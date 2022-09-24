@@ -1,8 +1,8 @@
 package main
 
 import (
-	"awesomeProject2/v2/server"
-	"awesomeProject2/v2/slave"
+	"GoFrp/v2/server"
+	"GoFrp/v2/slave"
 	"flag"
 )
 
@@ -16,8 +16,7 @@ func main() {
 	flag.Parse()
 
 	if *mode == "server" {
-		go server.ListenServer(*port)
-		server.ListenTunnelServer(*cmdPort)
+		server.Start(*port, *cmdPort)
 	} else {
 		slave.Start(*remoteCmdHost, *localHost)
 	}
