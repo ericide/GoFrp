@@ -1,7 +1,7 @@
 package cmdServer
 
 import (
-	"awesomeProject2/server/svcContext"
+	"GoFrp/v1/server/svcContext"
 	"bufio"
 	"fmt"
 	"log"

@@ -1,8 +1,8 @@
 package server
 
 import (
-	"awesomeProject2/server/cmdServer"
-	"awesomeProject2/server/svcContext"
+	"GoFrp/v1/server/cmdServer"
+	"GoFrp/v1/server/svcContext"
 	"fmt"
 	"io"
 	"log"
