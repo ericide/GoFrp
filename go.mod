@@ -1,3 +1,3 @@
-module awesomeProject2
+module GoFrp
 
 go 1.18
