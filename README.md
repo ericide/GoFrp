@@ -15,3 +15,4 @@ It can expose one of your local ports to the remote end
 It transmits the raw data
 
 - [ ] Encryption channel
+- [ ] Use single port handling double side 
