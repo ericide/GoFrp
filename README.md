@@ -16,3 +16,4 @@ It transmits the raw data
 
 - [ ] Encryption channel
 - [ ] Use single port handling double side 
+- [ ] UDP Method
