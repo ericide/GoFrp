@@ -1,9 +1,11 @@
 package main
 
 import (
-	"GoFrp/v2/server"
-	"GoFrp/v2/slave"
+	"GoFrp/v1/server"
+	"GoFrp/v1/server/svcContext"
+	"GoFrp/v1/slave"
 	"flag"
+	"sync"
 )
 
 var mode = flag.String("m", "server", "run mode")
@@ -16,8 +18,14 @@ func main() {
 	flag.Parse()
 
 	if *mode == "server" {
-		server.Start(*port, *cmdPort)
+		svc := &svcContext.SVCContext{
+			ApplyNewDataTunChan: nil,
+			TaskMap:             sync.Map{},
+			ServerPort:          *port,
+		}
+
+		server.StartServer(svc)
 	} else {
-		slave.Start(*remoteCmdHost, *localHost)
+		slave.Listen(*remoteCmdHost, *localHost)
 	}
 }
