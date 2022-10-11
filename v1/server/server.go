@@ -1,86 +1,180 @@
 package server
 
 import (
-	"GoFrp/v1/server/cmdServer"
+	"GoFrp/v1/constant"
 	"GoFrp/v1/server/svcContext"
+	"GoFrp/v1/util"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
-func Listen(port int, cmdPort int) {
+func StartServer(ctx *svcContext.SVCContext) {
 
-	ctx := &svcContext.SVCContext{
-		CmdCh:         make(chan int),
-		ConnCh:        make(chan net.Conn),
-		NewConnNotiCh: make(chan net.Conn),
-	}
-
-	go doListenServer(ctx, port)
-
-	commandServer := cmdServer.CMDHandler{
-		SvcCtx:  ctx,
-		CmdPort: cmdPort,
-	}
-	go commandServer.Start()
-
-	sig := make(chan os.Signal, 2)
-	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
-	<-sig
-}
-
-func doListenServer(ctx *svcContext.SVCContext, port int) {
-	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", ctx.ServerPort))
 	if err != nil {
 		log.Println("Error listening", err.Error())
 		return //终止程序
 	}
 	// 监听并接受来自客户端的连接
+	var index int64 = 0
+	log.Println("start Accept", ctx.ServerPort)
 	for {
-		log.Println("start Accept", port)
-
+		index++
 		conn, err := listener.Accept()
-		log.Printf("Accepted %v \n", conn)
-
 		if err != nil {
-			log.Println("Error accepting", err.Error())
-			return // 终止程序
+			continue
 		}
-		go doListenStuff(ctx, conn)
+		fmt.Println("new link come in", index)
+		doDistribute(conn, index, ctx)
+
 	}
 }
 
-func doListenStuff(ctx *svcContext.SVCContext, conn net.Conn) {
+func doDistribute(conn net.Conn, index int64, ctx *svcContext.SVCContext) {
+	fun := []byte{0}
 
-	log.Printf("New external request received!\n")
+	l, err := io.ReadAtLeast(conn, fun, len(fun))
+	if err != nil {
+		fmt.Println("new link err:", err)
+		return
+	}
 
-	ctx.CmdCh <- 1
-	connFromFrpClient, _ := <-ctx.ConnCh
+	fmt.Println("new link first complete", index, l)
 
-	log.Printf("start transmit data!\n")
+	if fun[0] == constant.LInkTypeSignal {
+		go doSignalTunnel(conn, fun, ctx)
+	} else if fun[0] == constant.LInkTypeDataTunnel {
+		go doDataTunnel(conn, fun, ctx)
+	} else { // data channal
+		go doRequest(conn, index, fun, ctx)
+	}
+}
+
+func doSignalTunnel(conn net.Conn, first []byte, ctx *svcContext.SVCContext) {
+
+	fmt.Println("New Signal Link")
+
+	err := auth(conn)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	//create new chan, each signal Tunnel has its own chan
+	ctx.ApplyNewDataTunChan = make(chan int64)
+
+	go runSignalWrite(conn, ctx)
+	fmt.Println("start signal tunnel")
+	for {
+		fun := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+		_, err := io.ReadAtLeast(conn, fun, len(fun))
+		if err != nil {
+			conn.Close()
+			return
+		}
+
+		identity, _, method, err := util.VerifyDataHeader(fun)
+		if err != nil {
+			conn.Close()
+			return
+		}
+
+		if method == constant.MethodPing {
+			header := util.CreateDataHeader(identity, 0, constant.MethodPong)
+			conn.Write(*header)
+		}
+
+	}
+}
+func runSignalWrite(conn net.Conn, ctx *svcContext.SVCContext) {
+	for {
+		identity := <-ctx.ApplyNewDataTunChan
+		fmt.Println("apply link to remote slave")
+		bytes := util.CreateDataHeader(identity, 0, constant.MethodApplyNewDataChannel)
+		_, err := conn.Write(*bytes)
+		if err != nil {
+			return
+		}
+	}
+}
+
+func doDataTunnel(conn net.Conn, first []byte, ctx *svcContext.SVCContext) {
+
+	fmt.Println("New Data Link")
+
+	fun := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	_, err := io.ReadAtLeast(conn, fun, len(fun))
+
+	if err != nil {
+		log.Println(err)
+		conn.Close()
+		return
+	}
+
+	identity, _, _, err := util.VerifyDataHeader(fun)
+
+	if err != nil {
+		log.Println(err)
+		conn.Close()
+		return
+	}
+
+	value, ok := ctx.TaskMap.Load(identity)
+	if ok != true {
+		conn.Close()
+		fmt.Println("map load not ok")
+		return
+	}
+	if desChan, ok := value.(chan net.Conn); ok == true {
+		desChan <- conn
+	}
+	ctx.TaskMap.Delete(identity)
+}
+
+func doRequest(conn net.Conn, index int64, first []byte, ctx *svcContext.SVCContext) {
+
+	fmt.Println("New Request Link")
+
+	myChan := make(chan net.Conn)
+
+	ctx.ApplyNewDataTunChan <- index
+
+	ctx.TaskMap.Store(index, myChan)
+
+	tunnel, _ := <-myChan
+
+	fmt.Println("Request get data tunnel")
+
+	tunnel.Write(first)
 
 	errCh := make(chan error, 2)
-	go proxy("frp client -> real client", conn, connFromFrpClient, errCh)
-	go proxy("real client -> frp client", connFromFrpClient, conn, errCh)
+
+	fmt.Println("start tranmit")
+
+	go proxy("<=", tunnel, conn, errCh)
+	go proxy("=>", conn, tunnel, errCh)
 
 	<-errCh
 
-	err := conn.Close()
-	log.Printf("close err 1 %v", err)
-	err = connFromFrpClient.Close()
-	log.Printf("close err 2 %v", err)
-
-	<-errCh
-
-	log.Printf("close %v, %v", conn, connFromFrpClient)
-
+	conn.Close()
+	tunnel.Close()
 }
 
 func proxy(des string, dst io.Writer, src io.Reader, errCh chan error) {
+
+	//for {
+	//	bytes, err := io.ReadAll(src)
+	//	if err != nil {
+	//		errCh <- err
+	//		fmt.Println(des, err)
+	//		return
+	//	}
+	//	dst.Write(bytes)
+	//	fmt.Println(des, len(bytes))
+	//}
+
 	num, err := io.Copy(dst, src)
 	log.Printf("num: %v, des: %s err: %v direction: %v -> %v", num, des, err, src, dst)
 	errCh <- err

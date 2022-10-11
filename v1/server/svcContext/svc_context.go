@@ -1,9 +1,11 @@
 package svcContext
 
-import "net"
+import (
+	"sync"
+)
 
 type SVCContext struct {
-	CmdCh         chan int
-	ConnCh        chan net.Conn
-	NewConnNotiCh chan net.Conn
+	ApplyNewDataTunChan chan int64
+	TaskMap             sync.Map
+	ServerPort          int
 }
