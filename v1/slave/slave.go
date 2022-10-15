@@ -2,6 +2,7 @@ package slave
 
 import (
 	"GoFrp/v1/constant"
+	"GoFrp/v1/svcContext"
 	"GoFrp/v1/util"
 	"fmt"
 	"io"
@@ -10,8 +11,12 @@ import (
 	"time"
 )
 
-func connectRemoteController(remoteCmdHost string, localHost string) {
-	conn, err := net.Dial("tcp", remoteCmdHost)
+func connectRemoteController(ctx *svcContext.SVCContext) {
+
+	serverAddr := fmt.Sprintf("%s:%d", ctx.ServerHost, ctx.ServerPort)
+	bindAddr := fmt.Sprintf("%s:%d", ctx.BindHost, ctx.BindPort)
+
+	conn, err := net.Dial("tcp", serverAddr)
 	if err != nil {
 		fmt.Println("client err=", err)
 		return
@@ -24,24 +29,15 @@ func connectRemoteController(remoteCmdHost string, localHost string) {
 		fmt.Println("conn.write err=", err)
 	}
 
-	err = auth(conn)
+	err = auth(ctx, conn)
 	if err != nil {
 		fmt.Println("conn.write err=", err)
 	}
 
-	go heartRate(conn)
+	go heartRate(ctx, conn)
 	fmt.Println("start ")
 	for {
-		fun := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-		_, err := io.ReadAtLeast(conn, fun, len(fun))
-
-		if err != nil {
-			log.Println(err)
-			conn.Close()
-			return
-		}
-
-		identity, _, method, err := util.VerifyDataHeader(fun)
+		identity, method, _, err := util.ReadDataPackage(ctx.Password, conn)
 
 		if err != nil {
 			log.Println(err)
@@ -53,23 +49,25 @@ func connectRemoteController(remoteCmdHost string, localHost string) {
 		case constant.MethodPong:
 			break
 		case constant.MethodApplyNewDataChannel:
-			go createNewConn(remoteCmdHost, localHost, identity)
+			go createNewConn(ctx, serverAddr, bindAddr, identity)
 			break
 		}
 	}
 }
 
-func auth(conn net.Conn) error {
-	fun := []byte{1, 7, 5, 8, 6, 5, 9, 0}
-	conn.Write(fun)
+func auth(ctx *svcContext.SVCContext, conn net.Conn) error {
+	body := []byte{1, 7, 5, 8, 6, 5, 9, 0}
+	data := util.CreateDataPackage(ctx.Password, 0, constant.MethodSignalAuth, body)
+	conn.Write(*data)
 	return nil
 }
 
-func heartRate(conn net.Conn) {
+func heartRate(ctx *svcContext.SVCContext, conn net.Conn) {
 	var index int64 = 0
 	for {
 		time.Sleep(5 * time.Second)
-		header := util.CreateDataHeader(index, 0, constant.MethodPing)
+		index++
+		header := util.CreateDataPackage(ctx.Password, index, constant.MethodPing, nil)
 		_, err := conn.Write(*header)
 		if err != nil {
 			return
@@ -77,10 +75,10 @@ func heartRate(conn net.Conn) {
 	}
 }
 
-func Listen(remoteCmdHost string, localHost string) {
+func Start(ctx *svcContext.SVCContext) {
 
 	for {
-		connectRemoteController(remoteCmdHost, localHost)
+		connectRemoteController(ctx)
 		time.Sleep(2 * time.Second)
 	}
 	//客户端可以发送单行数据
@@ -89,7 +87,7 @@ func Listen(remoteCmdHost string, localHost string) {
 
 }
 
-func createNewConn(remoteCmdHost string, localHost string, index int64) {
+func createNewConn(ctx *svcContext.SVCContext, remoteCmdHost string, localHost string, index int64) {
 	tunnel, err := net.Dial("tcp", remoteCmdHost)
 	if err != nil {
 		fmt.Println("client err=", err)
@@ -103,8 +101,8 @@ func createNewConn(remoteCmdHost string, localHost string, index int64) {
 	}
 	fmt.Println("replay to apple data tunnel")
 
-	header := util.CreateDataHeader(index, 0, constant.MethodApplyNewDataChannel)
-	_, err = tunnel.Write(*header)
+	pack := util.CreateDataPackage(ctx.Password, index, constant.MethodApplyNewDataChannel, nil)
+	_, err = tunnel.Write(*pack)
 	if err != nil {
 		fmt.Println("client err=", err)
 		return
