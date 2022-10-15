@@ -2,7 +2,7 @@ package server
 
 import (
 	"GoFrp/v1/constant"
-	"GoFrp/v1/server/svcContext"
+	"GoFrp/v1/svcContext"
 	"GoFrp/v1/util"
 	"fmt"
 	"io"
@@ -10,7 +10,7 @@ import (
 	"net"
 )
 
-func StartServer(ctx *svcContext.SVCContext) {
+func Start(ctx *svcContext.SVCContext) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", ctx.ServerPort))
 	if err != nil {
@@ -27,7 +27,7 @@ func StartServer(ctx *svcContext.SVCContext) {
 			continue
 		}
 		fmt.Println("new link come in", index)
-		doDistribute(conn, index, ctx)
+		go doDistribute(conn, index, ctx)
 
 	}
 }
@@ -56,9 +56,10 @@ func doSignalTunnel(conn net.Conn, first []byte, ctx *svcContext.SVCContext) {
 
 	fmt.Println("New Signal Link")
 
-	err := auth(conn)
+	err := auth(ctx, conn)
 	if err != nil {
 		fmt.Println(err)
+		conn.Close()
 		return
 	}
 
@@ -68,22 +69,16 @@ func doSignalTunnel(conn net.Conn, first []byte, ctx *svcContext.SVCContext) {
 	go runSignalWrite(conn, ctx)
 	fmt.Println("start signal tunnel")
 	for {
-		fun := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-		_, err := io.ReadAtLeast(conn, fun, len(fun))
+		identity, method, _, err := util.ReadDataPackage(ctx.Password, conn)
 		if err != nil {
 			conn.Close()
 			return
 		}
-
-		identity, _, method, err := util.VerifyDataHeader(fun)
-		if err != nil {
-			conn.Close()
-			return
-		}
+		// fmt.Println(body)
 
 		if method == constant.MethodPing {
-			header := util.CreateDataHeader(identity, 0, constant.MethodPong)
-			conn.Write(*header)
+			pack := util.CreateDataPackage(ctx.Password, identity, constant.MethodPong, nil)
+			conn.Write(*pack)
 		}
 
 	}
@@ -92,7 +87,7 @@ func runSignalWrite(conn net.Conn, ctx *svcContext.SVCContext) {
 	for {
 		identity := <-ctx.ApplyNewDataTunChan
 		fmt.Println("apply link to remote slave")
-		bytes := util.CreateDataHeader(identity, 0, constant.MethodApplyNewDataChannel)
+		bytes := util.CreateDataPackage(ctx.Password, identity, constant.MethodApplyNewDataChannel, nil)
 		_, err := conn.Write(*bytes)
 		if err != nil {
 			return
@@ -104,16 +99,7 @@ func doDataTunnel(conn net.Conn, first []byte, ctx *svcContext.SVCContext) {
 
 	fmt.Println("New Data Link")
 
-	fun := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-	_, err := io.ReadAtLeast(conn, fun, len(fun))
-
-	if err != nil {
-		log.Println(err)
-		conn.Close()
-		return
-	}
-
-	identity, _, _, err := util.VerifyDataHeader(fun)
+	identity, _, _, err := util.ReadDataPackage(ctx.Password, conn)
 
 	if err != nil {
 		log.Println(err)
