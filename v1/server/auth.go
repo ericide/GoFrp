@@ -1,34 +1,35 @@
 package server
 
 import (
+	"GoFrp/v1/constant"
+	"GoFrp/v1/svcContext"
+	"GoFrp/v1/util"
 	"errors"
-	"io"
-	"log"
+	"fmt"
 	"net"
 )
 
-func auth(conn net.Conn) error {
-	fun := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+func auth(ctx *svcContext.SVCContext, conn net.Conn) error {
+	fmt.Println("Auth start")
+	_, method, body, err := util.ReadDataPackage(ctx.Password, conn)
 
-	log.Println("Auth", conn)
-	_, err := io.ReadAtLeast(conn, fun, len(fun))
 	if err != nil {
 		return err
 	}
 
-	b0 := fun[0]
-	b1 := fun[1]
-	b2 := fun[2]
-	b3 := fun[3]
-	b4 := fun[4]
-	b5 := fun[5]
-	b6 := fun[6]
-	b7 := fun[7]
+	if method != constant.MethodSignalAuth {
+		errors.New("error auth method")
+	}
+
+	if len(body) != 8 {
+		errors.New("auth body error")
+	}
 
 	// a simple authorized method for testing
-	if b0 == 1 && b1 == 7 && b2 == 5 && b3 == 8 && b4 == 6 && b5 == 5 && b6 == 9 && b7 == 0 {
+	if body[0] == 1 && body[1] == 7 && body[2] == 5 && body[3] == 8 && body[4] == 6 && body[5] == 5 && body[6] == 9 && body[7] == 0 {
+		fmt.Println("Auth Success")
 		return nil
 	}
 
-	return errors.New("error conn")
+	return errors.New("error auth")
 }
