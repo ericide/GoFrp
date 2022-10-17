@@ -4,11 +4,9 @@
 
 A fast reverse proxy to help you expose a local server behind a NAT or firewall to the internet
 
- - Lightweight
- - Efficient
  - Save ports, only one port needs to be opened on the server side
  - Full platform support
- - Simple to use and configuration
+ - Easy. Simple to use and configuration. No need for docker, it runs directly on your machine with minimal memory consumption and cpu consumption, and is also very power efficient
 
 ## Example
 
