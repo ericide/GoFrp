@@ -1,10 +1,10 @@
 package main
 
 import (
-	"GoFrp/v1/server"
-	"GoFrp/v1/slave"
-	"GoFrp/v1/svcContext"
-	"GoFrp/v1/util"
+	"GoFrp/multi_wire/client"
+	"GoFrp/multi_wire/server"
+	"GoFrp/multi_wire/svcContext"
+	"GoFrp/multi_wire/util"
 	"flag"
 	"sync"
 )
@@ -33,6 +33,6 @@ func main() {
 	if *mode == "server" {
 		server.Start(svc)
 	} else {
-		slave.Start(svc)
+		client.Start(svc)
 	}
 }
