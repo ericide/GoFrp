@@ -2,7 +2,7 @@ package util
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"io"
 )
 
@@ -71,21 +71,26 @@ func ParseDataMessage(pwd []byte, message []byte) (int64, byte, []byte, error) {
 	data, err := AesDecrypt(message, pwd)
 
 	if err != nil {
-		return 0, 0, nil, errors.New("not correct sum")
+		return 0, 0, nil, fmt.Errorf("decrypt error, maybe discorrect password")
+	}
+
+	if len(message) < 6 { //message header mimimum is 6
+		return 0, 0, nil, fmt.Errorf("unvalible message header")
 	}
 
 	var identity int64 = int64(data[3])*256*256*256 + int64(data[2])*256*256 + int64(data[1])*256 + int64(data[0])
 
 	var method byte = data[4]
 	var sum byte = data[5]
-
+	// [0] [1] [2] [3] [4]      [5]         [6...]
+	// [identity     ] [method] [sum check] [body]
 	var csum byte = 0
 	for i := 0; i < 5; i++ {
 		csum += data[i]
 	}
 
 	if sum != csum {
-		return 0, 0, nil, errors.New("not correct sum")
+		return 0, 0, nil, fmt.Errorf("error sum")
 	}
 
 	return identity, method, data[6:], nil
