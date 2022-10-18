@@ -1,9 +1,9 @@
 package server
 
 import (
-	"GoFrp/v2/constant"
-	"GoFrp/v2/model"
-	"GoFrp/v2/util"
+	"GoFrp/sigle_wire/constant"
+	"GoFrp/sigle_wire/model"
+	"GoFrp/sigle_wire/util"
 	"bufio"
 	"errors"
 	"fmt"
