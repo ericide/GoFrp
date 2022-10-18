@@ -1,4 +1,4 @@
-package slave
+package client
 
 import (
 	"time"
