@@ -41,7 +41,7 @@ Command
 
 - [x] Encryption signalling channel
 - [x] Use sigle port handling data transmit and signalling transmit
-- [ ] UDP Method
+- [ ] UDP Support
 
 
 ## Some more to say
