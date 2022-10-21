@@ -5,7 +5,9 @@ import (
 	"GoFrp/multi_wire/server"
 	"GoFrp/multi_wire/svcContext"
 	"GoFrp/multi_wire/util"
+	"context"
 	"flag"
+	"fmt"
 	"sync"
 )
 
@@ -17,6 +19,9 @@ var bindPort = flag.Int("lp", 443, "local bind port")
 var password = flag.String("pwd", "12345678", "password for connect")
 
 func main() {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	flag.Parse()
 
@@ -31,8 +36,11 @@ func main() {
 	}
 
 	if *mode == "server" {
-		server.Start(svc)
+		go server.Start(svc)
 	} else {
-		client.Start(svc)
+		go client.Start(svc)
 	}
+
+	<-ctx.Done()
+	fmt.Println("bye")
 }
