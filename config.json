@@ -1,0 +1,16 @@
+[
+  {
+    "Mode": "client",
+    "ServerPort": 10000,
+    "ServerHost": "0.0.0.0",
+    "BindPort": 3000,
+    "BindHost": "localhost",
+    "Password": "12345678"
+  },
+  {
+    "Mode": "server",
+    "ServerPort": 10000,
+    "ServerHost": "0.0.0.0",
+    "Password": "12345678"
+  }
+]
