@@ -11,30 +11,39 @@ A fast reverse proxy to help you expose a local server behind a NAT or firewall 
 ## Example
 
 ```
-//on machine A which has a public IP (a.b.c.d)
-./frp -m server -h 0.0.0.0 -p 10000
+// client
+// in ./config.json
+ [
+    {
+        "Mode": "client",
+        "ServerPort": 10000,
+        "ServerHost": "0.0.0.0",
+        "BindPort": 3000,
+        "BindHost": "localhost",
+        "Password": "12345678"
+    },
+ ]
+./frp -c ./config.json
 
-//on machine B which behind a NAT 
-./frp -m client -h a.b.c.d -p 10000 -lh localhost -lp 443
-
-// Now you can visit machine B`s 443 port by a.b.c.d:10000
+// server
+// client
+// in ./config.json
+ [
+    {
+        "Mode": "server",
+        "ServerPort": 10000,
+        "ServerHost": "0.0.0.0",
+        "Password": "12345678"
+    },
+ ]
+./frp -c ./config.json
 ```
 
 ## How to use
 Command
 ```
-  -h string
-        server host (default "0.0.0.0")
-  -p int
-        server bind port (default 10000)
-  -lh string
-        local host (default "localhost")
-  -lp int
-        local bind port (default 443)
-  -m string
-        run mode (default "server")
-  -pwd string
-        password for connect (default "12345678")
+  -c config file path
+        default is './config.json'
 ```
 
 ## Completion
