@@ -4,10 +4,12 @@ import (
 	"GoFrp/multi_wire/constant"
 	"GoFrp/multi_wire/svcContext"
 	"GoFrp/multi_wire/util"
+	"bufio"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 func Start(ctx *svcContext.SVCContext) {
@@ -34,6 +36,23 @@ func Start(ctx *svcContext.SVCContext) {
 
 func doDistribute(conn net.Conn, index int64, ctx *svcContext.SVCContext) {
 	fun := []byte{0}
+
+	reader := bufio.NewReader(conn)
+
+	conn.SetReadDeadline(time.Now().Add(time.Second))
+
+	_, err := reader.Peek(1)
+	if err != nil {
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			fmt.Println("Timeout", err)
+			conn.SetReadDeadline(time.Now().Add(time.Hour * 10000))
+			go doRequest(conn, index, []byte{}, ctx)
+			return
+		}
+		fmt.Println("new link peek err:", err)
+		return
+	}
+	conn.SetReadDeadline(time.Now().Add(time.Hour * 10000))
 
 	l, err := io.ReadAtLeast(conn, fun, len(fun))
 	if err != nil {
