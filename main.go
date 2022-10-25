@@ -9,6 +9,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"sync"
 )
@@ -45,6 +46,62 @@ func main() {
 		}
 	}
 
+	go testUDP()
+
 	<-ctx.Done()
 	fmt.Println("bye")
+}
+
+func testUDP() {
+	listen, err := net.ListenUDP("udp", &net.UDPAddr{
+		IP:   net.IPv4(0, 0, 0, 0),
+		Port: 10000,
+	})
+	if err != nil {
+		fmt.Println("listen failed, err:", err)
+		return
+	}
+	fmt.Println("listen success")
+	defer listen.Close()
+
+	var sourceaddr net.UDPAddr
+
+	for {
+		var data [10240]byte
+		n, addr, err := listen.ReadFromUDP(data[:]) // 接收数据
+		if err != nil {
+			fmt.Println("read udp failed, err:", err)
+			continue
+		}
+		fmt.Println("read udp data")
+		if addr.IP.IsLoopback() {
+
+			_, err = listen.WriteToUDP(data[:n], &sourceaddr) // 发送数据
+			if err != nil {
+				fmt.Println("write to udp failed, err:", err)
+				continue
+			}
+
+		} else {
+
+			sourceaddr = *addr
+
+			naddr := &net.UDPAddr{
+				IP:   net.IPv4(127, 0, 0, 1),
+				Port: 5900,
+			}
+			_, err = listen.WriteToUDP(data[:n], naddr) // 发送数据
+			if err != nil {
+				fmt.Println("write to udp failed, err:", err)
+				continue
+			}
+		}
+
+		fmt.Printf("data:%v addr:%v count:%v\n", string(data[:n]), addr, n)
+		_, err = listen.WriteToUDP(data[:n], addr) // 发送数据
+		if err != nil {
+			fmt.Println("write to udp failed, err:", err)
+			continue
+		}
+	}
 }
