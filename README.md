@@ -1,5 +1,7 @@
 # GoFrp
 
+English/中文
+
 ## Introduce
 
 A fast reverse proxy to help you expose a local server behind a NAT or firewall to the internet
