@@ -10,6 +10,8 @@ A fast reverse proxy to help you expose a local server behind a NAT or firewall 
  - Full platform support
  - Easy. Simple to use and configuration. No need for docker, it runs directly on your machine with minimal memory consumption and cpu consumption, and is also very power efficient
 
+![PIC 示意](/images/example.png)
+
 ## Example
 
 ```
