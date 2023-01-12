@@ -9,7 +9,7 @@
     "Mode": "client",
     "ServerPort": 10000,
     "ServerHost": "0.0.0.0",
-    "BindPort": 5900,
+    "BindPort": 8080,
     "BindHost": "localhost",
     "Password": "12345678"
   }
