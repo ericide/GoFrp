@@ -13,14 +13,26 @@ import (
 	"sync"
 )
 
-var filepath = flag.String("c", "./config.json", "config file path")
+var configPath = flag.String("c", "", "config file path")
 
 func main() {
+
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+
+	defaultConfig := path.Join(exPath, "config.json")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	flag.Parse()
+
+	if "" == *configPath {
+		configPath = &defaultConfig
+	}
 
 	configs, err := config.ReadConfig(*filepath)
 	if err != nil {
